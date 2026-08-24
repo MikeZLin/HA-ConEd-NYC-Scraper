@@ -2,10 +2,17 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
+from zoneinfo import ZoneInfo
 
-from ..models import IntervalReading, ReadingQuality, SourceName
+from ..models import (
+    DailyUsageReading,
+    DailyWeatherReading,
+    IntervalReading,
+    ReadingQuality,
+    SourceName,
+)
 from ..service import AccountOverrideError, SourceError
 from .opower import _account_identifiers, _select_account
 
@@ -14,9 +21,47 @@ GRAPHQL_URL = "https://cned.opower.com/ei/edge/apis/dsm-graphql-v1/cws/graphql"
 METADATA_QUERY = """
 query WRTAMI_GetMetadata($selectedAccount: ID, $forceLegacyData: Boolean) {
   billingAccountByAuthContext(selectedAccount: $selectedAccount, forceLegacyData: $forceLegacyData) {
+    premisesConnection { edges { node { uuid } } }
     serviceAgreementsConnection(onlyActive: true) {
       edges { node { uuid serviceType servicePointsConnection { edges { node { uuid } } } } }
     }
+  }
+}
+"""
+
+DAILY_USAGE_QUERY = """
+query WDB_GetUsageReadsForDayAndHourWithIntervalReads(
+  $selectedAccount: ID, $customerURN: ID, $timeInterval: TimeInterval,
+  $resolution: ReadResolution, $forceLegacyData: Boolean, $aliased: Boolean,
+  $saUuid: String, $spUuid: String, $includeReadStreams: Boolean!
+) {
+  billingAccountByAuthContext(selectedAccount: $selectedAccount, singlePremise: $customerURN,
+    forceLegacyData: $forceLegacyData) {
+    serviceAgreementsConnection(onlyActive: true, aliased: $aliased, matching: $saUuid) {
+      edges { node { servicePointsConnection(matching: $spUuid) { edges { node {
+        readStreams(timeInterval: $timeInterval, readResolution: $resolution)
+          @include(if: $includeReadStreams) {
+          netUsage { unit reads { readType timeInterval measuredAmount { unit value } } }
+        }
+      } } } } }
+    }
+  }
+}
+"""
+
+DAILY_WEATHER_QUERY = """
+query WDB_GetWeather($selectedAccount: ID, $customerURN: ID, $unit: TemperatureUnit,
+  $timeInterval: [TimeInterval], $weatherResolution: WeatherResolutionType,
+  $forceLegacyData: Boolean, $premiseUuid: String) {
+  billingAccountByAuthContext(selectedAccount: $selectedAccount, singlePremise: $customerURN,
+    forceLegacyData: $forceLegacyData) {
+    premisesConnection(matching: $premiseUuid) { edges { node { uuid weather(
+      weatherResolution: $weatherResolution, intervals: $timeInterval,
+      temperatureUnit: $unit) {
+        timeInterval maxTemperature { value } meanTemperature { value }
+        minTemperature { value }
+      }
+    } } }
   }
 }
 """
@@ -61,6 +106,7 @@ query WRTAMI_GetRegisterUsage(
 class GraphQLSelection:
     service_agreement_uuid: str
     service_point_uuid: str
+    premise_uuid: str
 
 
 class GraphQLAuthorizationError(RuntimeError):
@@ -70,10 +116,13 @@ class GraphQLAuthorizationError(RuntimeError):
 class WebsiteApiSource:
     """Authenticated adapter for Con Edison's near-real-time GraphQL widget."""
 
-    def __init__(self, username: str, password: str, totp_secret: str) -> None:
+    def __init__(
+        self, username: str, password: str, totp_secret: str, *, daily_lookback_days: int = 30
+    ) -> None:
         self.username = username.strip()
         self.password = password
         self.totp_secret = "".join(totp_secret.split()).upper()
+        self.daily_lookback_days = daily_lookback_days
         self._session: Any | None = None
         self._client: Any | None = None
 
@@ -188,6 +237,76 @@ class WebsiteApiSource:
         except Exception as error:
             raise SourceError("Website usage parsing failed", stage="usage_parse") from error
 
+    async def fetch_daily(
+        self, account_override: str | None
+    ) -> tuple[list[DailyUsageReading], list[DailyWeatherReading]]:
+        if self._client is None or self._client.access_token is None:
+            # Establish and cache the same authenticated session used by interval fetches.
+            await self.fetch(account_override)
+        client = self._client
+        assert client is not None
+        try:
+            accounts = list(await client.async_get_accounts())
+            account = _select_account(accounts, account_override)
+            account_id = _account_identifiers(account)[0]
+            headers = _graphql_headers(client.access_token, account.customer.uuid)
+            base: dict[str, object] = {"forceLegacyData": False, "locale": "en-US"}
+            metadata = await _graphql_step(
+                client.session,
+                headers,
+                "WRTAMI_GetMetadata",
+                METADATA_QUERY,
+                base,
+                stage="daily_metadata",
+            )
+            selection = parse_metadata(metadata)
+            interval = _daily_window(self.daily_lookback_days)
+            usage_payload = await _graphql_step(
+                client.session,
+                headers,
+                "WDB_GetUsageReadsForDayAndHourWithIntervalReads",
+                DAILY_USAGE_QUERY,
+                {
+                    **base,
+                    "path": "day",
+                    "resolution": "DAY",
+                    "timeInterval": interval,
+                    "saUuid": selection.service_agreement_uuid,
+                    "spUuid": selection.service_point_uuid,
+                    "aliased": False,
+                    "serviceQuantityIdentifier": [],
+                    "units": [],
+                    "includeReadStreams": True,
+                    "includeAdditionalUOM": False,
+                    "includeIntervalReads": False,
+                },
+                stage="graphql_daily_usage",
+            )
+            weather_payload = await _graphql_step(
+                client.session,
+                headers,
+                "WDB_GetWeather",
+                DAILY_WEATHER_QUERY,
+                {
+                    **base,
+                    "unit": "FAHRENHEIT",
+                    "timeInterval": interval,
+                    "weatherResolution": "DAILY",
+                    "premiseUuid": selection.premise_uuid,
+                },
+                stage="graphql_daily_weather",
+            )
+            return (
+                parse_daily_usage(usage_payload, account_id=account_id),
+                parse_daily_weather(
+                    weather_payload, account_id=account_id, premise_uuid=selection.premise_uuid
+                ),
+            )
+        except (AccountOverrideError, SourceError):
+            raise
+        except Exception as error:
+            raise SourceError("Website daily request failed", stage="daily_fetch") from error
+
 
 def _graphql_headers(access_token: str | None, customer_uuid: str) -> dict[str, str]:
     if not access_token:
@@ -220,7 +339,11 @@ async def _post_graphql(
             raise RuntimeError(f"GraphQL HTTP {response.status}")
         payload = cast(dict[str, Any], await response.json())
         if payload.get("errors"):
-            raise RuntimeError("GraphQL returned errors")
+            errors = payload["errors"]
+            first = errors[0] if isinstance(errors, list) and errors else {}
+            code = _dict(_dict(first).get("extensions")).get("code", "unknown")
+            message = str(_dict(first).get("message", "GraphQL error"))
+            raise RuntimeError(f"GraphQL returned error code={code}: {message}")
         return payload
 
 
@@ -251,7 +374,14 @@ def parse_metadata(payload: dict[str, Any]) -> GraphQLSelection:
     for agreement in electric or agreements:
         points = _edge_nodes(_dict(agreement.get("servicePointsConnection")))
         if agreement.get("uuid") and points and points[0].get("uuid"):
-            return GraphQLSelection(str(agreement["uuid"]), str(points[0]["uuid"]))
+            data = _dict(payload.get("data"))
+            billing = _dict(data.get("billingAccountByAuthContext"))
+            premises = _edge_nodes(_dict(billing.get("premisesConnection")))
+            if not premises or not premises[0].get("uuid"):
+                raise RuntimeError("GraphQL metadata has no premise")
+            return GraphQLSelection(
+                str(agreement["uuid"]), str(points[0]["uuid"]), str(premises[0]["uuid"])
+            )
     raise RuntimeError("GraphQL metadata has no eligible electric service point")
 
 
@@ -302,6 +432,87 @@ def parse_graphql_readings(
     if not result:
         raise RuntimeError("GraphQL response has no measured interval readings")
     return result
+
+
+def parse_daily_usage(payload: dict[str, Any], *, account_id: str) -> list[DailyUsageReading]:
+    fetched = datetime.now(UTC)
+    result: list[DailyUsageReading] = []
+    for agreement in _agreement_nodes(payload):
+        for point in _edge_nodes(_dict(agreement.get("servicePointsConnection"))):
+            raw_streams = point.get("readStreams")
+            streams = [raw_streams] if isinstance(raw_streams, dict) else raw_streams or []
+            for stream in streams:
+                if not isinstance(stream, dict):
+                    continue
+                raw_net_usage = stream.get("netUsage")
+                net_usages = (
+                    [raw_net_usage] if isinstance(raw_net_usage, dict) else raw_net_usage or []
+                )
+                for net_usage in net_usages:
+                    if not isinstance(net_usage, dict):
+                        continue
+                    for raw in net_usage.get("reads") or []:
+                        measured = _dict(raw.get("measuredAmount"))
+                        interval = raw.get("timeInterval")
+                        if (
+                            measured.get("value") is None
+                            or not isinstance(interval, str)
+                            or "/" not in interval
+                        ):
+                            continue
+                        start, end = interval.split("/", 1)
+                        result.append(
+                            DailyUsageReading.create(
+                                account_id=account_id,
+                                start_time=_parse_datetime(start),
+                                end_time=_parse_datetime(end),
+                                energy_kwh=float(measured["value"]),
+                                fetched_at=fetched,
+                            )
+                        )
+    return result
+
+
+def parse_daily_weather(
+    payload: dict[str, Any], *, account_id: str, premise_uuid: str
+) -> list[DailyWeatherReading]:
+    fetched = datetime.now(UTC)
+    data = _dict(payload.get("data"))
+    billing = _dict(data.get("billingAccountByAuthContext"))
+    result: list[DailyWeatherReading] = []
+    for premise in _edge_nodes(_dict(billing.get("premisesConnection"))):
+        for raw in premise.get("weather") or []:
+            interval = raw.get("timeInterval")
+            if not isinstance(interval, str) or "/" not in interval:
+                continue
+            start, end = interval.split("/", 1)
+            minimum = _optional_float(_dict(raw.get("minTemperature")).get("value"))
+            mean = _optional_float(_dict(raw.get("meanTemperature")).get("value"))
+            maximum = _optional_float(_dict(raw.get("maxTemperature")).get("value"))
+            result.append(
+                DailyWeatherReading(
+                    account_id,
+                    premise_uuid,
+                    _parse_datetime(start),
+                    _parse_datetime(end),
+                    minimum,
+                    mean,
+                    maximum,
+                    fetched,
+                )
+            )
+    return result
+
+
+def _optional_float(value: object) -> float | None:
+    return None if value is None else float(cast(Any, value))
+
+
+def _daily_window(days: int, now: datetime | None = None) -> str:
+    local_now = (now or datetime.now(UTC)).astimezone(ZoneInfo("America/New_York"))
+    end = local_now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+    start = end - timedelta(days=days)
+    return f"{start.isoformat()}/{end.isoformat()}"
 
 
 def _agreement_nodes(payload: dict[str, Any]) -> list[dict[str, Any]]:

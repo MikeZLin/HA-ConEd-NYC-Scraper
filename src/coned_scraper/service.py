@@ -3,9 +3,9 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
-from .models import IntervalReading
+from .models import DailyUsageReading, DailyWeatherReading, IntervalReading
 from .storage import ReadingStore
 
 LOGGER = logging.getLogger(__name__)
@@ -31,6 +31,13 @@ class AccountOverrideError(RuntimeError):
 
 class UsageSource(Protocol):
     async def fetch(self, account_override: str | None) -> list[IntervalReading]: ...
+
+
+@runtime_checkable
+class DailySource(Protocol):
+    async def fetch_daily(
+        self, account_override: str | None
+    ) -> tuple[list[DailyUsageReading], list[DailyWeatherReading]]: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,4 +85,15 @@ class RefreshService:
         if not readings:
             raise SourceError("source returned no interval readings", stage="normalize")
         self.store.upsert_many(readings)
+        if isinstance(source, DailySource):
+            try:
+                daily_usage, daily_weather = await source.fetch_daily(account_override)
+                self.store.upsert_daily_usage(daily_usage)
+                self.store.upsert_daily_weather(daily_weather)
+            except SourceError as error:
+                LOGGER.warning(
+                    "Daily refresh stage=%s error=%s",
+                    error.stage,
+                    error.__class__.__name__,
+                )
         return max(readings, key=lambda reading: reading.end_time)

@@ -6,7 +6,10 @@ from datetime import UTC, datetime
 from coned_scraper.models import ReadingQuality, SourceName
 from coned_scraper.sources.website import (
     GraphQLSelection,
+    _daily_window,
     _graphql_headers,
+    parse_daily_usage,
+    parse_daily_weather,
     parse_graphql_readings,
     parse_metadata,
     parse_register_id,
@@ -26,6 +29,7 @@ class WebsiteGraphQLParsingTests(unittest.TestCase):
         payload = {
             "data": {
                 "billingAccountByAuthContext": {
+                    "premisesConnection": {"edges": [{"node": {"uuid": "premise-1"}}]},
                     "serviceAgreementsConnection": {
                         "edges": [
                             {
@@ -47,12 +51,94 @@ class WebsiteGraphQLParsingTests(unittest.TestCase):
                                 }
                             },
                         ]
+                    },
+                }
+            }
+        }
+
+        self.assertEqual(
+            GraphQLSelection("electric-sa", "electric-sp", "premise-1"),
+            parse_metadata(payload),
+        )
+
+    def test_daily_window_uses_new_york_calendar_days(self) -> None:
+        now = datetime(2026, 8, 23, 14, tzinfo=UTC)
+        self.assertEqual(
+            "2026-08-21T00:00:00-04:00/2026-08-24T00:00:00-04:00",
+            _daily_window(3, now),
+        )
+
+    def test_daily_usage_and_weather_parsers(self) -> None:
+        usage = {
+            "data": {
+                "billingAccountByAuthContext": {
+                    "serviceAgreementsConnection": {
+                        "edges": [
+                            {
+                                "node": {
+                                    "servicePointsConnection": {
+                                        "edges": [
+                                            {
+                                                "node": {
+                                                    "readStreams": [
+                                                        {
+                                                            "netUsage": {
+                                                                "unit": "KWH",
+                                                                "reads": [
+                                                                    {
+                                                                        "timeInterval": "2026-08-22T00:00:00-04:00/2026-08-23T00:00:00-04:00",
+                                                                        "measuredAmount": {
+                                                                            "value": 12.5,
+                                                                            "unit": "KWH",
+                                                                        },
+                                                                    }
+                                                                ],
+                                                            }
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+        weather = {
+            "data": {
+                "billingAccountByAuthContext": {
+                    "premisesConnection": {
+                        "edges": [
+                            {
+                                "node": {
+                                    "weather": [
+                                        {
+                                            "timeInterval": "2026-08-22T00:00:00-04:00/2026-08-23T00:00:00-04:00",
+                                            "minTemperature": {"value": 68},
+                                            "meanTemperature": {"value": 75},
+                                            "maxTemperature": {"value": 82},
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
                     }
                 }
             }
         }
 
-        self.assertEqual(GraphQLSelection("electric-sa", "electric-sp"), parse_metadata(payload))
+        usage_result = parse_daily_usage(usage, account_id="account-1")
+        weather_result = parse_daily_weather(
+            weather, account_id="account-1", premise_uuid="premise-1"
+        )
+
+        self.assertEqual(12.5, usage_result[0].energy_kwh)
+        self.assertEqual(68.0, weather_result[0].minimum_temperature_f)
+        self.assertEqual(75.0, weather_result[0].mean_temperature_f)
+        self.assertEqual(82.0, weather_result[0].maximum_temperature_f)
 
     def test_register_parser_uses_first_nonempty_register(self) -> None:
         payload = {

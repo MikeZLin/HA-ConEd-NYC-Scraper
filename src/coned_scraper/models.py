@@ -78,3 +78,45 @@ class IntervalReading:
             "source_resolution_minutes": self.source_resolution_minutes,
             "quality": self.quality.value,
         }
+
+
+@dataclass(frozen=True, slots=True)
+class DailyUsageReading:
+    account_id: str
+    start_time: datetime
+    end_time: datetime
+    energy_kwh: float
+    fetched_at: datetime
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        account_id: str,
+        start_time: datetime,
+        end_time: datetime,
+        energy_kwh: float,
+        fetched_at: datetime | None = None,
+    ) -> DailyUsageReading:
+        if not account_id:
+            raise ValueError("account_id is required")
+        if energy_kwh < 0:
+            raise ValueError("energy_kwh cannot be negative")
+        start, end = _aware_utc(start_time), _aware_utc(end_time)
+        if end <= start:
+            raise ValueError("daily interval end must be after interval start")
+        return cls(
+            account_id, start, end, float(energy_kwh), _aware_utc(fetched_at or datetime.now(UTC))
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class DailyWeatherReading:
+    account_id: str
+    premise_uuid: str
+    start_time: datetime
+    end_time: datetime
+    minimum_temperature_f: float | None
+    mean_temperature_f: float | None
+    maximum_temperature_f: float | None
+    fetched_at: datetime

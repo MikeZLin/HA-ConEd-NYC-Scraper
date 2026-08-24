@@ -18,6 +18,7 @@ identifiers are stored in the repository.
 - `CONED_ACCOUNT_OVERRIDE`: optional stable account identifier
 - `CONED_DATABASE_PATH`: defaults to `data/readings.sqlite3`
 - `CONED_POLLING_INTERVAL_MINUTES`: defaults to `15`, minimum `15`
+- `CONED_DAILY_LOOKBACK_DAYS`: rolling daily usage/weather window; defaults to `30`
 - `CONED_USERNAME`: Con Edison login email (`CONED_EMAIL` is also accepted)
 - `CONED_PASSWORD`: Con Edison password
 - `CONED_PASSWORD_ENCODING`: set to `base64` when `CONED_PASSWORD` is encoded

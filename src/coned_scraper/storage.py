@@ -5,7 +5,13 @@ from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
 
-from .models import IntervalReading, ReadingQuality, SourceName
+from .models import (
+    DailyUsageReading,
+    DailyWeatherReading,
+    IntervalReading,
+    ReadingQuality,
+    SourceName,
+)
 
 
 class ReadingStore:
@@ -36,6 +42,22 @@ class ReadingStore:
         )
         self._connection.execute(
             "CREATE INDEX IF NOT EXISTS interval_readings_end_time ON interval_readings(end_time)"
+        )
+        self._connection.execute(
+            """CREATE TABLE IF NOT EXISTS daily_usage_readings (
+                account_id TEXT NOT NULL, start_time TEXT NOT NULL, end_time TEXT NOT NULL,
+                energy_kwh REAL NOT NULL, fetched_at TEXT NOT NULL,
+                PRIMARY KEY(account_id, start_time, end_time)
+            )"""
+        )
+        self._connection.execute(
+            """CREATE TABLE IF NOT EXISTS daily_weather_readings (
+                account_id TEXT NOT NULL, premise_uuid TEXT NOT NULL,
+                start_time TEXT NOT NULL, end_time TEXT NOT NULL,
+                minimum_temperature_f REAL, mean_temperature_f REAL,
+                maximum_temperature_f REAL, fetched_at TEXT NOT NULL,
+                PRIMARY KEY(account_id, premise_uuid, start_time, end_time)
+            )"""
         )
         self._connection.commit()
 
@@ -104,6 +126,54 @@ class ReadingStore:
             quality=ReadingQuality(row["quality"]),
             fetched_at=datetime.fromisoformat(row["fetched_at"]),
         )
+
+    def upsert_daily_usage(self, readings: Iterable[DailyUsageReading]) -> None:
+        with self._connection:
+            self._connection.executemany(
+                """INSERT INTO daily_usage_readings
+                   (account_id, start_time, end_time, energy_kwh, fetched_at)
+                   VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT(account_id, start_time, end_time) DO UPDATE SET
+                     energy_kwh=excluded.energy_kwh, fetched_at=excluded.fetched_at""",
+                [
+                    (
+                        r.account_id,
+                        r.start_time.isoformat(),
+                        r.end_time.isoformat(),
+                        r.energy_kwh,
+                        r.fetched_at.isoformat(),
+                    )
+                    for r in readings
+                ],
+            )
+
+    def upsert_daily_weather(self, readings: Iterable[DailyWeatherReading]) -> None:
+        with self._connection:
+            self._connection.executemany(
+                """INSERT INTO daily_weather_readings
+                   (account_id, premise_uuid, start_time, end_time,
+                    minimum_temperature_f, mean_temperature_f,
+                    maximum_temperature_f, fetched_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(account_id, premise_uuid, start_time, end_time) DO UPDATE SET
+                     minimum_temperature_f=excluded.minimum_temperature_f,
+                     mean_temperature_f=excluded.mean_temperature_f,
+                     maximum_temperature_f=excluded.maximum_temperature_f,
+                     fetched_at=excluded.fetched_at""",
+                [
+                    (
+                        r.account_id,
+                        r.premise_uuid,
+                        r.start_time.isoformat(),
+                        r.end_time.isoformat(),
+                        r.minimum_temperature_f,
+                        r.mean_temperature_f,
+                        r.maximum_temperature_f,
+                        r.fetched_at.isoformat(),
+                    )
+                    for r in readings
+                ],
+            )
 
     def latest_payload(self) -> dict[str, object] | None:
         item = self.latest()

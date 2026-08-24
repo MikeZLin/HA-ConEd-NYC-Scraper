@@ -27,6 +27,7 @@ class Runtime:
                 settings.username,
                 settings.password,
                 settings.totp_secret,
+                daily_lookback_days=settings.daily_lookback_days,
             ),
             opower=OpowerSource(
                 settings.username,

@@ -17,6 +17,7 @@ class Settings:
     password: str
     totp_secret: str
     polling_interval_minutes: int = 15
+    daily_lookback_days: int = 30
 
     @classmethod
     def from_environment(cls) -> Settings:
@@ -30,6 +31,9 @@ class Settings:
         polling_interval = int(os.getenv("CONED_POLLING_INTERVAL_MINUTES", "15"))
         if polling_interval < 15:
             raise ValueError("CONED_POLLING_INTERVAL_MINUTES cannot be less than 15")
+        daily_lookback_days = int(os.getenv("CONED_DAILY_LOOKBACK_DAYS", "30"))
+        if daily_lookback_days < 1:
+            raise ValueError("CONED_DAILY_LOOKBACK_DAYS must be positive")
         password = os.getenv("CONED_PASSWORD", "")
         if os.getenv("CONED_PASSWORD_ENCODING", "").lower() == "base64" and password:
             try:
@@ -43,6 +47,7 @@ class Settings:
             password=password,
             totp_secret=os.getenv("CONED_TOTP_SECRET") or os.getenv("TOTP_SECRET") or "",
             polling_interval_minutes=polling_interval,
+            daily_lookback_days=daily_lookback_days,
         )
 
     def require_opower_credentials(self) -> None:
