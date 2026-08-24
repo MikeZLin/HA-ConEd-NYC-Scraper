@@ -1,0 +1,36 @@
+services:
+  coned-scraper:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: coned-scraper:local
+    container_name: coned-scraper
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env
+    environment:
+      CONED_DATABASE_PATH: /app/data/readings.sqlite3
+    ports:
+      - "8000:8000"
+    volumes:
+      - coned-data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"
+      interval: 30s
+      timeout: 6s
+      retries: 3
+      start_period: 20s
+    stop_grace_period: 20s
+
+volumes:
+  coned-data:

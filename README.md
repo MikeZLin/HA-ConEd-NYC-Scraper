@@ -38,6 +38,28 @@ python -m pip install -e '.[api]'
 python -m coned_scraper
 ```
 
+### Docker Compose
+
+Create the ignored runtime environment file and start the collector:
+
+```console
+cp .env.example .env
+# Edit .env with the real credentials.
+docker compose up -d --build
+docker compose ps
+```
+
+Open `http://localhost:8000/` for the dashboard. SQLite data is persisted in
+the `coned-data` named volume across container replacement. To inspect logs or
+stop the service:
+
+```console
+docker compose logs -f coned-scraper
+docker compose down
+```
+
+`docker compose down` preserves the data volume. Adding `--volumes` deletes it.
+
 Copy `custom_components/coned_connect` into the Home Assistant configuration's
 `custom_components` directory, restart Home Assistant, and add “Con Edison
 Interval Usage” from Devices & Services.

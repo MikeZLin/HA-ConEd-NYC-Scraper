@@ -1,0 +1,14 @@
+.git
+.env
+.venv
+.tools
+.mypy_cache
+.pytest_cache
+.ruff_cache
+__pycache__
+*.py[cod]
+*.sqlite3*
+captures
+.scratch
+tests
+custom_components
