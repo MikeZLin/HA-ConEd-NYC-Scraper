@@ -10,7 +10,7 @@ from .const import CONF_API_PORT, CONF_API_URL, DEFAULT_API_URL, DOMAIN, build_a
 from .coordinator import ConEdisonIntervalCoordinator
 from .statistics import async_import_statistics
 
-PLATFORMS = [Platform.SENSOR]
+PLATFORMS = [Platform.NUMBER, Platform.SENSOR]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

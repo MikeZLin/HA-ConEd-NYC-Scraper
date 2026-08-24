@@ -25,13 +25,13 @@ def hourly_usage(rows: list[dict[str, Any]]) -> list[HourlyUsage]:
             start = _parse_datetime(row["start_time"])
             end = _parse_datetime(row["end_time"])
             energy = float(row["energy_kwh"])
-            power = float(row["average_power_w"])
         except (KeyError, TypeError, ValueError):
             continue
         hour_end = start.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
         if end <= start or end > hour_end:
             continue
-        intervals.append((start, end, energy, power))
+        average_power = energy * 1000 / ((end - start).total_seconds() / 3600)
+        intervals.append((start, end, energy, average_power))
 
     by_hour: dict[datetime, list[tuple[datetime, datetime, float, float]]] = {}
     for interval in intervals:

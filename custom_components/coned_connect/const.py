@@ -4,6 +4,8 @@ from datetime import timedelta
 from urllib.parse import urlsplit, urlunsplit
 
 DOMAIN = "coned_connect"
+CONF_ELECTRICITY_RATE = "electricity_rate"
+DEFAULT_ELECTRICITY_RATE = 0.30
 CONF_API_URL = "api_url"
 CONF_API_PORT = "api_port"
 DEFAULT_API_URL = "http://localhost"

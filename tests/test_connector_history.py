@@ -45,7 +45,7 @@ def test_hourly_usage_sums_complete_intervals_and_tracks_cumulative_energy() -> 
         datetime(2026, 8, 24, 17, tzinfo=UTC),
     ]
     assert result[0].energy_kwh == 0.469
-    assert result[0].average_power_w == 117.25
+    assert result[0].average_power_w == 469
     assert result[0].cumulative_energy_kwh == 0.469
     assert result[1].energy_kwh == 0.5
     assert result[1].average_power_w == 500
