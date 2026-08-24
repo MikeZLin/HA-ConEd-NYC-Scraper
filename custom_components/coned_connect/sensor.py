@@ -21,7 +21,7 @@ class SensorDescription:
     name: str
     unit: str
     device_class: SensorDeviceClass
-    state_class: SensorStateClass
+    state_class: SensorStateClass | None
     icon: str
 
 
@@ -31,7 +31,7 @@ SENSORS = (
         name="Latest Interval Energy",
         unit=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
-        state_class=SensorStateClass.MEASUREMENT,
+        state_class=None,
         icon="mdi:lightning-bolt",
     ),
     SensorDescription(
