@@ -9,7 +9,11 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_ELECTRICITY_RATE, DEFAULT_ELECTRICITY_RATE, DOMAIN
+from .const import (
+    CONF_ELECTRICITY_RATE_CENTS,
+    DEFAULT_ELECTRICITY_RATE_CENTS,
+    DOMAIN,
+)
 from .coordinator import ConEdisonIntervalCoordinator
 from .statistics import async_import_statistics
 
@@ -31,9 +35,9 @@ class ElectricityRateNumber(CoordinatorEntity[ConEdisonIntervalCoordinator], Num
     _attr_name = "Electricity Rate"
     _attr_icon = "mdi:currency-usd"
     _attr_native_min_value = 0
-    _attr_native_max_value = 5
-    _attr_native_step = 0.01
-    _attr_native_unit_of_measurement = "USD/kWh"
+    _attr_native_max_value = 500
+    _attr_native_step = 1
+    _attr_native_unit_of_measurement = "¢/kWh"
     _attr_mode = NumberMode.BOX
 
     def __init__(
@@ -53,14 +57,16 @@ class ElectricityRateNumber(CoordinatorEntity[ConEdisonIntervalCoordinator], Num
     def native_value(self) -> float:
         """Return the configured flat rate."""
         return float(
-            self.entry.options.get(CONF_ELECTRICITY_RATE, DEFAULT_ELECTRICITY_RATE)
+            self.entry.options.get(
+                CONF_ELECTRICITY_RATE_CENTS, DEFAULT_ELECTRICITY_RATE_CENTS
+            )
         )
 
     async def async_set_native_value(self, value: float) -> None:
         """Save a new rate and recalculate historical costs."""
         self.hass.config_entries.async_update_entry(
             self.entry,
-            options={**self.entry.options, CONF_ELECTRICITY_RATE: value},
+            options={**self.entry.options, CONF_ELECTRICITY_RATE_CENTS: value},
         )
         async_import_statistics(self.hass, self.entry, self.coordinator.data)
         self.async_write_ha_state()

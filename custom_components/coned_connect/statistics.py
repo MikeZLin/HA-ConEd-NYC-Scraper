@@ -14,7 +14,11 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfEnergy, UnitOfPower
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_ELECTRICITY_RATE, DEFAULT_ELECTRICITY_RATE, DOMAIN
+from .const import (
+    CONF_ELECTRICITY_RATE_CENTS,
+    DEFAULT_ELECTRICITY_RATE_CENTS,
+    DOMAIN,
+)
 from .history import hourly_usage
 
 
@@ -49,7 +53,14 @@ def async_import_statistics(
     ]
     async_add_external_statistics(hass, energy_metadata, energy_statistics)
 
-    rate = float(entry.options.get(CONF_ELECTRICITY_RATE, DEFAULT_ELECTRICITY_RATE))
+    rate = (
+        float(
+            entry.options.get(
+                CONF_ELECTRICITY_RATE_CENTS, DEFAULT_ELECTRICITY_RATE_CENTS
+            )
+        )
+        / 100
+    )
     currency = hass.config.currency
     cost_metadata: StatisticMetaData = {
         "has_sum": True,
