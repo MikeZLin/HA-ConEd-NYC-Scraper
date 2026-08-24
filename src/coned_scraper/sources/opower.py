@@ -57,7 +57,7 @@ class OpowerSource:
     """Con Edison source backed by the Home Assistant Opower library."""
 
     def __init__(self, username: str, password: str, totp_secret: str, *, hours: int = 48) -> None:
-        self.username = username
+        self.username = username.strip()
         self.password = password
         self.totp_secret = "".join(totp_secret.split()).upper()
         self.hours = hours
