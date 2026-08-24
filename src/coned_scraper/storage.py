@@ -195,11 +195,11 @@ class ReadingStore:
             "source": item.source.value,
         }
 
-    def interval_history_payload(self, *, hours: int = 24) -> list[dict[str, object]]:
+    def interval_history_payload(self, *, hours: int | None = 24) -> list[dict[str, object]]:
         latest = self.latest()
         if latest is None:
             return []
-        cutoff = latest.end_time - timedelta(hours=hours)
+        cutoff = latest.end_time - timedelta(hours=hours) if hours is not None else None
         rows = self._connection.execute(
             """SELECT start_time, end_time, energy_kwh, average_power_w, source, quality
                FROM interval_readings WHERE account_id = ? ORDER BY end_time ASC""",
@@ -215,7 +215,7 @@ class ReadingStore:
                 "quality": row["quality"],
             }
             for row in rows
-            if datetime.fromisoformat(row["end_time"]) > cutoff
+            if cutoff is None or datetime.fromisoformat(row["end_time"]) > cutoff
         ]
 
     def daily_history_payload(self, *, days: int | None = 31) -> list[dict[str, object]]:

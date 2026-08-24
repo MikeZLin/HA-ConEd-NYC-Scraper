@@ -8,6 +8,7 @@ from homeassistant.core import HomeAssistant
 
 from .const import CONF_API_PORT, CONF_API_URL, DEFAULT_API_URL, DOMAIN, build_api_url
 from .coordinator import ConEdisonIntervalCoordinator
+from .statistics import async_import_statistics
 
 PLATFORMS = [Platform.SENSOR]
 
@@ -22,6 +23,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
     await coordinator.async_config_entry_first_refresh()
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+    async_import_statistics(hass, entry, coordinator.data)
+    entry.async_on_unload(
+        coordinator.async_add_listener(
+            lambda: async_import_statistics(hass, entry, coordinator.data)
+        )
+    )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 

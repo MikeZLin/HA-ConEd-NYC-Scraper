@@ -119,8 +119,10 @@ def create_app(settings: Settings | None = None) -> Any:
         return state.store.daily_history_payload()
 
     @app.get("/api/history/intervals")
-    async def interval_history() -> list[dict[str, object]]:
-        return state.store.interval_history_payload()
+    async def interval_history(hours: int = 24) -> list[dict[str, object]]:
+        if hours < 0:
+            raise HTTPException(status_code=400, detail="hours must be zero or greater")
+        return state.store.interval_history_payload(hours=None if hours == 0 else hours)
 
     @app.get("/api/export/import-statistics.csv")
     async def export_import_statistics() -> Response:
