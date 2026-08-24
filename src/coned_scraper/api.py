@@ -25,7 +25,7 @@ def create_app(settings: Settings | None = None) -> Any:
             yield
         finally:
             await runtime.poller.stop()
-            runtime.close()
+            await runtime.aclose()
 
     app = FastAPI(title="Con Edison Interval Usage", lifespan=lifespan)
 

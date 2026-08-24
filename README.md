@@ -6,11 +6,11 @@ Assistant through a local HTTP API and custom integration.
 
 ## Current status
 
-The Opower source, source routing, SQLite storage, API, and Home Assistant sensor
-surface are implemented. The private website API adapter is intentionally gated
-on the sanitized [manual network capture](docs/network-capture.md). Until that
-contract is captured, `auto` mode falls back to Opower and `website_api` mode
-returns an upstream error.
+The authenticated website GraphQL source, Opower fallback, source routing,
+SQLite storage, API, and Home Assistant sensor surface are implemented. The
+GraphQL source follows the sanitized contract documented by the
+[manual network capture](docs/network-capture.md); no captured tokens or account
+identifiers are stored in the repository.
 
 ## Configuration
 
@@ -18,9 +18,10 @@ returns an upstream error.
 - `CONED_ACCOUNT_OVERRIDE`: optional stable account identifier
 - `CONED_DATABASE_PATH`: defaults to `data/readings.sqlite3`
 - `CONED_POLLING_INTERVAL_MINUTES`: defaults to `15`, minimum `15`
-- `CONED_USERNAME`: Con Edison login email
+- `CONED_USERNAME`: Con Edison login email (`CONED_EMAIL` is also accepted)
 - `CONED_PASSWORD`: Con Edison password
-- `CONED_TOTP_SECRET`: Base32 TOTP seed
+- `CONED_PASSWORD_ENCODING`: set to `base64` when `CONED_PASSWORD` is encoded
+- `CONED_TOTP_SECRET`: Base32 TOTP seed (`TOTP_SECRET` is also accepted)
 
 Do not place secrets in version-controlled files. For an add-on deployment,
 provide these values through its protected configuration/secret mechanism.

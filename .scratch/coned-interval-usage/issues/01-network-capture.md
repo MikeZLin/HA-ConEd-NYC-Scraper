@@ -1,6 +1,6 @@
 # Discover and document the website API contract
 
-Status: ready
+Status: completed
 
 Manually capture the authenticated Con Edison energy-use workflow described in
 the spec. Produce a sanitized request-contract document and sanitized response

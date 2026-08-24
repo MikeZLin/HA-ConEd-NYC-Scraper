@@ -23,7 +23,11 @@ class Runtime:
         store = ReadingStore(settings.database_path)
         service = RefreshService(
             store,
-            website=WebsiteApiSource(),
+            website=WebsiteApiSource(
+                settings.username,
+                settings.password,
+                settings.totp_secret,
+            ),
             opower=OpowerSource(
                 settings.username,
                 settings.password,
@@ -39,3 +43,9 @@ class Runtime:
 
     def close(self) -> None:
         self.store.close()
+
+    async def aclose(self) -> None:
+        website = self.refresh_service.website
+        if isinstance(website, WebsiteApiSource):
+            await website.close()
+        self.close()

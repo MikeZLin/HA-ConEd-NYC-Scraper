@@ -1,11 +1,6 @@
 # Implement website and Opower source adapters
 
-Status: blocked
-
-Blocked by: 01, 02
-
-The Opower adapter and shared source boundary are implemented. The website
-adapter remains blocked on the sanitized manual capture in ticket 01.
+Status: completed
 
 Implement a lightweight `aiohttp` website adapter from the captured contract and
 extract the existing Opower behavior behind the same interface. Reuse encrypted

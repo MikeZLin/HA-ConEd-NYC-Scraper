@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import binascii
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -28,12 +30,18 @@ class Settings:
         polling_interval = int(os.getenv("CONED_POLLING_INTERVAL_MINUTES", "15"))
         if polling_interval < 15:
             raise ValueError("CONED_POLLING_INTERVAL_MINUTES cannot be less than 15")
+        password = os.getenv("CONED_PASSWORD", "")
+        if os.getenv("CONED_PASSWORD_ENCODING", "").lower() == "base64" and password:
+            try:
+                password = base64.b64decode(password, validate=True).decode().rstrip("\r\n")
+            except (binascii.Error, UnicodeDecodeError) as error:
+                raise ValueError("CONED_PASSWORD is not valid Base64-encoded UTF-8") from error
         return cls(
             database_path=Path(os.getenv("CONED_DATABASE_PATH", "data/readings.sqlite3")),
             refresh=RefreshConfig(mode=mode, account_override=account_override),
-            username=os.getenv("CONED_USERNAME", ""),
-            password=os.getenv("CONED_PASSWORD", ""),
-            totp_secret=os.getenv("CONED_TOTP_SECRET", ""),
+            username=os.getenv("CONED_USERNAME") or os.getenv("CONED_EMAIL") or "",
+            password=password,
+            totp_secret=os.getenv("CONED_TOTP_SECRET") or os.getenv("TOTP_SECRET") or "",
             polling_interval_minutes=polling_interval,
         )
 
