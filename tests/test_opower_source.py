@@ -5,10 +5,15 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 from coned_scraper.models import ReadingQuality, SourceName
-from coned_scraper.sources.opower import normalize_opower_reads
+from coned_scraper.sources.opower import OpowerSource, normalize_opower_reads
 
 
 class OpowerNormalizationTests(unittest.TestCase):
+    def test_totp_secret_formatting_whitespace_is_normalized(self) -> None:
+        source = OpowerSource("user", "password", "abcd efgh ijkl mnop")
+
+        self.assertEqual("ABCDEFGHIJKLMNOP", source.totp_secret)
+
     def test_hourly_read_is_split_into_four_labeled_estimates(self) -> None:
         start = datetime(2026, 8, 23, 12, 0, tzinfo=UTC)
         reads = [

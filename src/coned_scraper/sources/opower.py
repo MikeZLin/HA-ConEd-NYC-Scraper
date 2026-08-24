@@ -59,7 +59,7 @@ class OpowerSource:
     def __init__(self, username: str, password: str, totp_secret: str, *, hours: int = 48) -> None:
         self.username = username
         self.password = password
-        self.totp_secret = totp_secret
+        self.totp_secret = "".join(totp_secret.split()).upper()
         self.hours = hours
 
     async def fetch(self, account_override: str | None) -> list[IntervalReading]:
