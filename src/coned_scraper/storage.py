@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from .models import (
@@ -185,6 +185,75 @@ class ReadingStore:
             "attributes": item.attributes(),
         }
 
+    def dashboard_status(self) -> dict[str, object]:
+        item = self.latest()
+        if item is None:
+            return {"last_scraped_at": None, "latest_interval_end": None, "source": None}
+        return {
+            "last_scraped_at": item.fetched_at.isoformat(),
+            "latest_interval_end": item.end_time.isoformat(),
+            "source": item.source.value,
+        }
+
+    def interval_history_payload(self, *, hours: int = 24) -> list[dict[str, object]]:
+        latest = self.latest()
+        if latest is None:
+            return []
+        cutoff = latest.end_time - timedelta(hours=hours)
+        rows = self._connection.execute(
+            """SELECT start_time, end_time, energy_kwh, average_power_w, source, quality
+               FROM interval_readings WHERE account_id = ? ORDER BY end_time ASC""",
+            (latest.account_id,),
+        ).fetchall()
+        return [
+            {
+                "start_time": row["start_time"],
+                "end_time": row["end_time"],
+                "energy_kwh": float(row["energy_kwh"]),
+                "average_power_w": float(row["average_power_w"]),
+                "source": row["source"],
+                "quality": row["quality"],
+            }
+            for row in rows
+            if datetime.fromisoformat(row["end_time"]) > cutoff
+        ]
+
+    def daily_history_payload(self, *, days: int = 31) -> list[dict[str, object]]:
+        latest = self.latest()
+        if latest is None:
+            return []
+        usage_rows = self._connection.execute(
+            """SELECT start_time, end_time, energy_kwh FROM daily_usage_readings
+               WHERE account_id = ? ORDER BY start_time DESC LIMIT ?""",
+            (latest.account_id, days),
+        ).fetchall()
+        weather_rows = self._connection.execute(
+            """SELECT start_time, minimum_temperature_f, mean_temperature_f,
+                      maximum_temperature_f FROM daily_weather_readings
+               WHERE account_id = ? ORDER BY start_time DESC LIMIT ?""",
+            (latest.account_id, days + 2),
+        ).fetchall()
+        weather_by_date = {
+            datetime.fromisoformat(row["start_time"]).date().isoformat(): row
+            for row in weather_rows
+        }
+        result: list[dict[str, object]] = []
+        for row in reversed(usage_rows):
+            day = datetime.fromisoformat(row["start_time"]).date().isoformat()
+            weather = weather_by_date.get(day)
+            result.append(
+                {
+                    "date": day,
+                    "start_time": row["start_time"],
+                    "end_time": row["end_time"],
+                    "energy_kwh": float(row["energy_kwh"]),
+                    "temperature_min_f": _nullable_float(weather, "minimum_temperature_f"),
+                    "temperature_mean_f": _nullable_float(weather, "mean_temperature_f"),
+                    "temperature_max_f": _nullable_float(weather, "maximum_temperature_f"),
+                }
+            )
+        return result
+
 
 def _precedence(quality: str, source: str) -> int:
     if quality == ReadingQuality.ESTIMATED.value:
@@ -192,3 +261,9 @@ def _precedence(quality: str, source: str) -> int:
     if source == SourceName.WEBSITE_API.value:
         return 3
     return 2
+
+
+def _nullable_float(row: sqlite3.Row | None, key: str) -> float | None:
+    if row is None or row[key] is None:
+        return None
+    return float(row[key])

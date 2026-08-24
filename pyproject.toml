@@ -19,6 +19,9 @@ dev = ["mypy>=1.11", "pip>=25.2", "pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+coned_scraper = ["static/*.html"]
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 asyncio_mode = "auto"

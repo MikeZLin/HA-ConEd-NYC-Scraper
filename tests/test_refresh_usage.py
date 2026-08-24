@@ -7,7 +7,13 @@ import unittest
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from coned_scraper.models import IntervalReading, ReadingQuality, SourceName
+from coned_scraper.models import (
+    DailyUsageReading,
+    DailyWeatherReading,
+    IntervalReading,
+    ReadingQuality,
+    SourceName,
+)
 from coned_scraper.service import (
     AccountOverrideError,
     RefreshConfig,
@@ -187,6 +193,42 @@ class RefreshUsageTests(unittest.TestCase):
         with sqlite3.connect(self.database_path) as connection:
             count = connection.execute("SELECT COUNT(*) FROM interval_readings").fetchone()
         self.assertEqual((1,), count)
+
+    def test_dashboard_histories_join_weather_and_bound_intervals(self) -> None:
+        self.store.upsert_many([reading()])
+        self.store.upsert_daily_usage(
+            [
+                DailyUsageReading.create(
+                    account_id="acct-1",
+                    start_time=START,
+                    end_time=START + timedelta(days=1),
+                    energy_kwh=12.5,
+                    fetched_at=START + timedelta(days=1),
+                )
+            ]
+        )
+        self.store.upsert_daily_weather(
+            [
+                DailyWeatherReading(
+                    account_id="acct-1",
+                    premise_uuid="premise-1",
+                    start_time=START,
+                    end_time=START + timedelta(days=1),
+                    minimum_temperature_f=65.0,
+                    mean_temperature_f=72.0,
+                    maximum_temperature_f=80.0,
+                    fetched_at=START + timedelta(days=1),
+                )
+            ]
+        )
+
+        daily = self.store.daily_history_payload()
+        intervals = self.store.interval_history_payload()
+
+        self.assertEqual(12.5, daily[0]["energy_kwh"])
+        self.assertEqual(72.0, daily[0]["temperature_mean_f"])
+        self.assertEqual(1, len(intervals))
+        self.assertEqual(1000.0, intervals[0]["average_power_w"])
 
 
 if __name__ == "__main__":
