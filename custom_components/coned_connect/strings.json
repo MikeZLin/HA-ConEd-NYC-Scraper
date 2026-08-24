@@ -4,9 +4,13 @@
       "user": {
         "title": "Connect to the Con Edison collector",
         "data": {
-          "api_url": "Collector API URL"
+          "api_url": "Collector URL",
+          "api_port": "Collector port"
         }
       }
+    },
+    "error": {
+      "invalid_url": "Enter an HTTP or HTTPS URL with a valid host"
     }
   }
 }

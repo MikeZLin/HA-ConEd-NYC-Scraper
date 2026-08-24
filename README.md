@@ -62,7 +62,8 @@ docker compose down
 
 Copy `custom_components/coned_connect` into the Home Assistant configuration's
 `custom_components` directory, restart Home Assistant, and add “Con Edison
-Interval Usage” from Devices & Services.
+Interval Usage” from Devices & Services. Enter the collector URL and port in
+their separate fields; for example, `http://192.168.1.50` and `8000`.
 
 ## Tests
 
