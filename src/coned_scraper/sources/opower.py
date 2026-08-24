@@ -67,18 +67,23 @@ class OpowerSource:
             import aiohttp
             from opower import AggregateType, Opower, create_cookie_jar
         except ImportError as error:
-            raise SourceError("Opower dependencies are not installed") from error
+            raise SourceError(
+                "Opower dependencies are not installed", stage="dependency_import"
+            ) from error
 
-        async with aiohttp.ClientSession(cookie_jar=create_cookie_jar()) as session:
-            client = Opower(
-                session=session,
-                utility="coned",
-                username=self.username,
-                password=self.password,
-                optional_totp_secret=self.totp_secret,
-            )
-            try:
+        stage = "session_create"
+        try:
+            async with aiohttp.ClientSession(cookie_jar=create_cookie_jar()) as session:
+                client = Opower(
+                    session=session,
+                    utility="coned",
+                    username=self.username,
+                    password=self.password,
+                    optional_totp_secret=self.totp_secret,
+                )
+                stage = "login_totp"
                 await client.async_login()
+                stage = "account_discovery"
                 all_accounts = list(await client.async_get_accounts())
                 electric_accounts = [
                     account
@@ -89,10 +94,12 @@ class OpowerSource:
                     )
                 ]
                 accounts = electric_accounts or all_accounts
+                stage = "account_selection"
                 account = _select_account(accounts, account_override)
                 account_id = _account_identifiers(account)[0]
                 end = datetime.now(UTC)
                 start = end - timedelta(hours=self.hours)
+                stage = "quarter_hour_fetch"
                 reads = await client.async_get_cost_reads(
                     account, AggregateType.QUARTER_HOUR, start, end
                 )
@@ -100,14 +107,15 @@ class OpowerSource:
                     return normalize_opower_reads(
                         reads, account_id=account_id, native_minutes=15, fetched_at=end
                     )
+                stage = "hourly_fetch"
                 reads = await client.async_get_cost_reads(account, AggregateType.HOUR, start, end)
                 return normalize_opower_reads(
                     reads, account_id=account_id, native_minutes=60, fetched_at=end
                 )
-            except AccountOverrideError:
-                raise
-            except Exception as error:
-                raise SourceError("Opower request failed") from error
+        except AccountOverrideError:
+            raise
+        except Exception as error:
+            raise SourceError("Opower request failed", stage=stage) from error
 
 
 def _account_identifiers(account: Any) -> list[str]:

@@ -45,7 +45,8 @@ class Poller:
                 return
             except SourceError as error:
                 LOGGER.error(
-                    "Interval polling failed stage=refresh retry=true error=%s",
+                    "Interval polling failed stage=%s retry=true error=%s",
+                    error.stage,
                     error.__class__.__name__,
                 )
             await asyncio.sleep(self.interval_seconds)

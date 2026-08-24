@@ -109,6 +109,17 @@ class RefreshUsageTests(unittest.TestCase):
         self.assertEqual(opower_reading, result)
         self.assertEqual([None], opower.calls)
 
+    def test_auto_log_includes_sanitized_failure_stage(self) -> None:
+        website = FakeSource(error=SourceError("secret upstream details", stage="login_totp"))
+        opower = FakeSource([reading(source=SourceName.OPOWER)])
+
+        with self.assertLogs("coned_scraper.service", level="WARNING") as captured:
+            self.run_refresh(website, opower, RefreshConfig(mode=SourceMode.AUTO))
+
+        message = captured.output[0]
+        self.assertIn("stage=login_totp", message)
+        self.assertNotIn("secret upstream details", message)
+
     def test_explicit_mode_does_not_fall_back_and_cached_value_survives(self) -> None:
         self.store.upsert_many([reading()])
         website = FakeSource(error=SourceError("upstream unavailable"))

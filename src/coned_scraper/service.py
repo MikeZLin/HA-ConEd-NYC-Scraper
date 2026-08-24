@@ -20,6 +20,10 @@ class SourceMode(StrEnum):
 class SourceError(RuntimeError):
     """A retryable or fallback-eligible upstream source failure."""
 
+    def __init__(self, message: str, *, stage: str = "source") -> None:
+        super().__init__(message)
+        self.stage = stage
+
 
 class AccountOverrideError(RuntimeError):
     """A fatal account override mismatch."""
@@ -59,8 +63,9 @@ class RefreshService:
             raise
         except SourceError as error:
             LOGGER.warning(
-                "Interval refresh source=website_api stage=fetch fallback=true error=%s",
-                _safe_error(error),
+                "Interval refresh source=website_api stage=%s fallback=true error=%s",
+                error.stage,
+                error.__class__.__name__,
             )
             return await self._fetch_and_store(self.opower, config.account_override)
 
@@ -71,11 +76,6 @@ class RefreshService:
     ) -> IntervalReading:
         readings = await source.fetch(account_override)
         if not readings:
-            raise SourceError("source returned no interval readings")
+            raise SourceError("source returned no interval readings", stage="normalize")
         self.store.upsert_many(readings)
         return max(readings, key=lambda reading: reading.end_time)
-
-
-def _safe_error(error: Exception) -> str:
-    """Keep runtime logging intentionally terse to avoid leaking upstream data."""
-    return error.__class__.__name__
