@@ -26,6 +26,8 @@ identifiers are stored in the repository.
 
 Do not place secrets in version-controlled files. For an add-on deployment,
 provide these values through its protected configuration/secret mechanism.
+Copy `.env.example` to `.env` for local development and replace its placeholders;
+`.env` is ignored by Git.
 
 ## Run
 
