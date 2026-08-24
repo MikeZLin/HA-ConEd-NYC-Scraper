@@ -1,0 +1,12 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to the Con Edison collector",
+        "data": {
+          "api_url": "Collector API URL"
+        }
+      }
+    }
+  }
+}

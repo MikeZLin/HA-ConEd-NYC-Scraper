@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "coned-scraper"
+version = "0.1.0"
+description = "Lightweight Con Edison interval usage collector"
+requires-python = ">=3.11"
+dependencies = [
+  "aiohttp>=3.11",
+  "opower>=0.17",
+]
+
+[project.optional-dependencies]
+api = ["fastapi>=0.115", "uvicorn>=0.32"]
+dev = ["mypy>=1.11", "pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.8"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+packages = ["coned_scraper"]
+
+[tool.ruff]
+line-length = 100

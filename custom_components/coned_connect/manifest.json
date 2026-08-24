@@ -1,0 +1,8 @@
+{
+  "domain": "coned_connect",
+  "name": "Con Edison Interval Usage",
+  "version": "0.1.0",
+  "config_flow": true,
+  "iot_class": "local_polling",
+  "requirements": []
+}
