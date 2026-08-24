@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import csv
+import io
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import datetime
 from importlib.resources import files
-from typing import Any
+from typing import Any, cast
+from zoneinfo import ZoneInfo
 
 from .config import Settings
 from .runtime import Runtime
@@ -14,7 +18,7 @@ def create_app(settings: Settings | None = None) -> Any:
     """Create the optional FastAPI service without importing FastAPI in the core."""
     try:
         from fastapi import FastAPI, Header, HTTPException
-        from fastapi.responses import HTMLResponse
+        from fastapi.responses import HTMLResponse, Response
     except ImportError as error:
         raise RuntimeError("Install coned-scraper[api] to run the HTTP service") from error
 
@@ -57,6 +61,15 @@ def create_app(settings: Settings | None = None) -> Any:
     @app.get("/api/history/intervals")
     async def interval_history() -> list[dict[str, object]]:
         return runtime.store.interval_history_payload()
+
+    @app.get("/api/export/import-statistics.csv")
+    async def export_import_statistics() -> Response:
+        content = _import_statistics_csv(runtime.store.daily_history_payload(days=None))
+        return Response(
+            content=content,
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="coned-import-statistics.csv"'},
+        )
 
     @app.post("/api/connections/{source}/test")
     async def test_connection(
@@ -106,3 +119,51 @@ def create_app(settings: Settings | None = None) -> Any:
         return payload
 
     return app
+
+
+def _import_statistics_csv(rows: list[dict[str, object]]) -> str:
+    """Create a mixed counter/measurement file for HACS Import Statistics."""
+    output = io.StringIO(newline="")
+    fieldnames = ["statistic_id", "start", "unit", "mean", "min", "max", "sum", "state"]
+    writer = csv.DictWriter(output, fieldnames=fieldnames, lineterminator="\n")
+    writer.writeheader()
+    cumulative_kwh = 0.0
+    new_york = ZoneInfo("America/New_York")
+    for row in rows:
+        start = datetime.fromisoformat(str(row["start_time"])).astimezone(new_york)
+        timestamp = start.strftime("%Y-%m-%d %H:00")
+        cumulative_kwh += _required_float(row["energy_kwh"])
+        writer.writerow(
+            {
+                "statistic_id": "sensor:coned_imported_energy",
+                "start": timestamp,
+                "unit": "kWh",
+                "sum": _csv_number(cumulative_kwh),
+                "state": _csv_number(cumulative_kwh),
+            }
+        )
+        temperatures = (
+            row["temperature_min_f"],
+            row["temperature_mean_f"],
+            row["temperature_max_f"],
+        )
+        if all(value is not None for value in temperatures):
+            writer.writerow(
+                {
+                    "statistic_id": "sensor:coned_imported_temperature",
+                    "start": timestamp,
+                    "unit": "°F",
+                    "mean": _csv_number(_required_float(row["temperature_mean_f"])),
+                    "min": _csv_number(_required_float(row["temperature_min_f"])),
+                    "max": _csv_number(_required_float(row["temperature_max_f"])),
+                }
+            )
+    return output.getvalue()
+
+
+def _csv_number(value: float) -> str:
+    return f"{value:.6f}".rstrip("0").rstrip(".")
+
+
+def _required_float(value: object) -> float:
+    return float(cast(Any, value))

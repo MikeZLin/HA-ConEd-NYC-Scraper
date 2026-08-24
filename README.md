@@ -60,6 +60,31 @@ docker compose down
 
 `docker compose down` preserves the data volume. Adding `--volumes` deletes it.
 
+### Export historical statistics to Home Assistant
+
+The dashboard's **Download Import Statistics CSV** button exports all stored
+daily energy and temperature history in the mixed CSV format accepted by the
+[Import Statistics HACS integration](https://github.com/klausj1/homeassistant-statistics).
+Energy is exported as the cumulative external statistic
+`sensor:coned_imported_energy`; temperature uses min/mean/max under
+`sensor:coned_imported_temperature`.
+
+Copy the downloaded CSV into Home Assistant's `/config` directory. In
+**Developer Tools → Actions**, run `import_statistics.import_from_file` with:
+
+```yaml
+filename: coned-import-statistics.csv
+delimiter: ","
+decimal: "."
+datetime_format: "%Y-%m-%d %H:%M"
+timezone_identifier: America/New_York
+```
+
+Back up Home Assistant before importing and test with a small database first.
+Import Statistics requires full-hour timestamps; the export uses New York local
+midnight for every daily row. Re-exporting and importing the same dates updates
+those timestamps rather than creating additional Con Edison scraper rows.
+
 Copy `custom_components/coned_connect` into the Home Assistant configuration's
 `custom_components` directory, restart Home Assistant, and add “Con Edison
 Interval Usage” from Devices & Services. Enter the collector URL and port in

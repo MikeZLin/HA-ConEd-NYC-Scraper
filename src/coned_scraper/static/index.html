@@ -14,7 +14,7 @@
     .panel { background:color-mix(in srgb,var(--panel) 92%,transparent); border:1px solid var(--line); border-radius:16px; box-shadow:0 16px 50px #0005 }
     .overview { padding:20px; display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:16px; margin-bottom:18px }
     .metric { padding:8px 12px; border-left:1px solid var(--line) }.metric:first-child{border:0}.label { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.1em }.value { font-size:20px; font-weight:700; margin-top:4px }
-    .connections { display:flex; flex-wrap:wrap; gap:10px; margin:0 0 24px } button { border:1px solid #35516b; color:var(--text); background:#152536; padding:10px 14px; border-radius:9px; cursor:pointer; font-weight:700 } button:hover { border-color:var(--cyan) } button:disabled { opacity:.55; cursor:wait }.result { align-self:center; color:var(--muted) }
+    .connections { display:flex; flex-wrap:wrap; gap:10px; margin:0 0 24px } button,.button { border:1px solid #35516b; color:var(--text); background:#152536; padding:10px 14px; border-radius:9px; cursor:pointer; font-weight:700; text-decoration:none } button:hover,.button:hover { border-color:var(--cyan) } button:disabled { opacity:.55; cursor:wait }.result { align-self:center; color:var(--muted) }
     .chart-panel { padding:20px; margin-top:18px }.chart-head { display:flex; justify-content:space-between; align-items:start; gap:20px; margin-bottom:12px }.legend { display:flex; gap:16px; color:var(--muted); font-size:12px }.key:before { content:""; display:inline-block; width:10px; height:10px; margin-right:6px; border-radius:2px; background:var(--blue) }.key.temp:before { background:var(--amber); border-radius:50% }
     .chart { width:100%; min-height:300px; display:block; overflow:visible }.grid { stroke:var(--line); stroke-width:1 }.axis { fill:var(--muted); font-size:11px }.bar { fill:var(--blue); opacity:.83; transition:.12s }.bar:hover { fill:var(--cyan); opacity:1 }.temp-line { fill:none; stroke:var(--amber); stroke-width:3 }.temp-point { fill:var(--amber); stroke:var(--panel); stroke-width:2 }.empty { fill:var(--muted); font-size:14px }
     #tooltip { position:fixed; z-index:5; pointer-events:none; opacity:0; background:#06101aeF; border:1px solid #38516a; border-radius:8px; padding:9px 11px; color:var(--text); font-size:12px; box-shadow:0 8px 30px #0008; transition:opacity .08s; white-space:nowrap }
@@ -32,6 +32,7 @@
   <div class="connections">
     <button data-source="website_api">Test Website GraphQL</button>
     <button data-source="opower">Test Opower API</button>
+    <a class="button" href="/api/export/import-statistics.csv" download>Download Import Statistics CSV</a>
     <span class="result" id="test-result">Tests call only the selected source; fallback is disabled.</span>
   </div>
   <section class="panel chart-panel"><div class="chart-head"><div><h2>Daily energy and temperature</h2><p>Last month · temperature uses a stabilized independent scale</p></div><div class="legend"><span class="key">Energy, kWh</span><span class="key temp">Mean temperature, °F</span></div></div><svg id="daily-chart" class="chart" role="img" aria-label="Daily energy usage and mean temperature"></svg></section>

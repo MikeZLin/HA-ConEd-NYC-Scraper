@@ -218,21 +218,25 @@ class ReadingStore:
             if datetime.fromisoformat(row["end_time"]) > cutoff
         ]
 
-    def daily_history_payload(self, *, days: int = 31) -> list[dict[str, object]]:
+    def daily_history_payload(self, *, days: int | None = 31) -> list[dict[str, object]]:
         latest = self.latest()
         if latest is None:
             return []
-        usage_rows = self._connection.execute(
-            """SELECT start_time, end_time, energy_kwh FROM daily_usage_readings
-               WHERE account_id = ? ORDER BY start_time DESC LIMIT ?""",
-            (latest.account_id, days),
-        ).fetchall()
-        weather_rows = self._connection.execute(
-            """SELECT start_time, minimum_temperature_f, mean_temperature_f,
-                      maximum_temperature_f FROM daily_weather_readings
-               WHERE account_id = ? ORDER BY start_time DESC LIMIT ?""",
-            (latest.account_id, days + 2),
-        ).fetchall()
+        usage_query = """SELECT start_time, end_time, energy_kwh FROM daily_usage_readings
+                         WHERE account_id = ? ORDER BY start_time DESC"""
+        weather_query = """SELECT start_time, minimum_temperature_f, mean_temperature_f,
+                                   maximum_temperature_f FROM daily_weather_readings
+                            WHERE account_id = ? ORDER BY start_time DESC"""
+        if days is None:
+            usage_rows = self._connection.execute(usage_query, (latest.account_id,)).fetchall()
+            weather_rows = self._connection.execute(weather_query, (latest.account_id,)).fetchall()
+        else:
+            usage_rows = self._connection.execute(
+                f"{usage_query} LIMIT ?", (latest.account_id, days)
+            ).fetchall()
+            weather_rows = self._connection.execute(
+                f"{weather_query} LIMIT ?", (latest.account_id, days + 2)
+            ).fetchall()
         weather_by_date = {
             datetime.fromisoformat(row["start_time"]).date().isoformat(): row
             for row in weather_rows
