@@ -13,10 +13,10 @@ class Poller:
         self,
         service: RefreshService,
         config: RefreshConfig,
-        interval_minutes: int,
+        interval_minutes: float,
     ) -> None:
-        if interval_minutes < 15:
-            raise ValueError("polling interval cannot be less than 15 minutes")
+        if interval_minutes < 7.5:
+            raise ValueError("polling interval cannot be less than 7.5 minutes")
         self.service = service
         self.config = config
         self.interval_seconds = interval_minutes * 60

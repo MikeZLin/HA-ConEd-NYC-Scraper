@@ -16,7 +16,7 @@ class Settings:
     username: str
     password: str
     totp_secret: str
-    polling_interval_minutes: int = 15
+    polling_interval_minutes: float = 7.5
     daily_lookback_days: int = 30
 
     @classmethod
@@ -28,9 +28,9 @@ class Settings:
             choices = ", ".join(mode.value for mode in SourceMode)
             raise ValueError(f"CONED_SOURCE_MODE must be one of: {choices}") from error
         account_override = os.getenv("CONED_ACCOUNT_OVERRIDE") or None
-        polling_interval = int(os.getenv("CONED_POLLING_INTERVAL_MINUTES", "15"))
-        if polling_interval < 15:
-            raise ValueError("CONED_POLLING_INTERVAL_MINUTES cannot be less than 15")
+        polling_interval = float(os.getenv("CONED_POLLING_INTERVAL_MINUTES", "7.5"))
+        if polling_interval < 7.5:
+            raise ValueError("CONED_POLLING_INTERVAL_MINUTES cannot be less than 7.5")
         daily_lookback_days = int(os.getenv("CONED_DAILY_LOOKBACK_DAYS", "30"))
         if daily_lookback_days < 1:
             raise ValueError("CONED_DAILY_LOOKBACK_DAYS must be positive")

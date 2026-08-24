@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import sqlite3
 import tempfile
 import unittest
 from datetime import UTC, datetime, timedelta
@@ -59,7 +60,8 @@ class FakeSource:
 class RefreshUsageTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tempdir = tempfile.TemporaryDirectory()
-        self.store = ReadingStore(Path(self.tempdir.name) / "readings.sqlite3")
+        self.database_path = Path(self.tempdir.name) / "readings.sqlite3"
+        self.store = ReadingStore(self.database_path)
 
     def tearDown(self) -> None:
         self.store.close()
@@ -175,6 +177,16 @@ class RefreshUsageTests(unittest.TestCase):
         latest = self.store.latest()
         self.assertIsNotNone(latest)
         self.assertEqual(SourceName.WEBSITE_API, latest.source)  # type: ignore[union-attr]
+
+    def test_repeated_identical_interval_is_not_duplicated(self) -> None:
+        item = reading()
+
+        self.store.upsert_many([item])
+        self.store.upsert_many([item])
+
+        with sqlite3.connect(self.database_path) as connection:
+            count = connection.execute("SELECT COUNT(*) FROM interval_readings").fetchone()
+        self.assertEqual((1,), count)
 
 
 if __name__ == "__main__":

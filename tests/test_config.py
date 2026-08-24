@@ -24,6 +24,13 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(" user@example.com ", settings.username)
         self.assertEqual("actual password", settings.password)
         self.assertEqual("ABCD EFGH IJKL MNOP", settings.totp_secret)
+        self.assertEqual(7.5, settings.polling_interval_minutes)
+
+    def test_fractional_polling_interval_is_supported(self) -> None:
+        with patch.dict(os.environ, {"CONED_POLLING_INTERVAL_MINUTES": "7.5"}, clear=True):
+            settings = Settings.from_environment()
+
+        self.assertEqual(7.5, settings.polling_interval_minutes)
 
     def test_invalid_base64_password_fails_without_echoing_value(self) -> None:
         with (
