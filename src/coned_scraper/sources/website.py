@@ -423,6 +423,9 @@ def parse_graphql_readings(
                     start_time=_parse_datetime(start_raw),
                     end_time=_parse_datetime(end_raw),
                     energy_kwh=float(measured["value"]),
+                    # Con Edison's real-time series is already normalized for
+                    # display as power; do not multiply 15-minute values by four.
+                    average_power_w=float(measured["value"]) * 1000,
                     source=SourceName.WEBSITE_API,
                     source_resolution_minutes=15,
                     quality=ReadingQuality.MEASURED,

@@ -220,7 +220,7 @@ class WebsiteGraphQLParsingTests(unittest.TestCase):
 
         self.assertEqual(1, len(result))
         self.assertEqual(0.072, result[0].energy_kwh)
-        self.assertEqual(288.0, result[0].average_power_w)
+        self.assertEqual(72.0, result[0].average_power_w)
         self.assertEqual(SourceName.WEBSITE_API, result[0].source)
         self.assertEqual(ReadingQuality.MEASURED, result[0].quality)
         self.assertEqual(15, result[0].source_resolution_minutes)

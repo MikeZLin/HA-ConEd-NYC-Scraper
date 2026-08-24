@@ -41,6 +41,7 @@ class IntervalReading:
         start_time: datetime,
         end_time: datetime,
         energy_kwh: float,
+        average_power_w: float | None = None,
         source: SourceName,
         source_resolution_minutes: int,
         quality: ReadingQuality,
@@ -55,6 +56,8 @@ class IntervalReading:
             raise ValueError("interval end must be after interval start")
         if energy_kwh < 0:
             raise ValueError("energy_kwh cannot be negative")
+        if average_power_w is not None and average_power_w < 0:
+            raise ValueError("average_power_w cannot be negative")
         if source_resolution_minutes <= 0:
             raise ValueError("source resolution must be positive")
         return cls(
@@ -62,7 +65,11 @@ class IntervalReading:
             start_time=start,
             end_time=end,
             energy_kwh=float(energy_kwh),
-            average_power_w=float(energy_kwh) * 1000 / duration_hours,
+            average_power_w=(
+                float(average_power_w)
+                if average_power_w is not None
+                else float(energy_kwh) * 1000 / duration_hours
+            ),
             source=source,
             source_resolution_minutes=source_resolution_minutes,
             quality=quality,
