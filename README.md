@@ -12,22 +12,46 @@ GraphQL source follows the sanitized contract documented by the
 [manual network capture](docs/network-capture.md); no captured tokens or account
 identifiers are stored in the repository.
 
-## Configuration
+## First-time setup
+
+The collector can start without Con Edison credentials. On first launch it creates
+the SQLite database and an encryption key in its data directory. Open
+`http://localhost:8000/`, then save your Con Edison username, password, and
+Base32 TOTP secret in **Login settings**.
+
+The settings API shows the username and TOTP secret so they can be reviewed and
+updated, but it never returns the saved password. Leaving the password field
+blank keeps the existing value. The page also shows the current six-digit TOTP
+code to confirm that the seed and system clock agree.
+
+To switch a Con Edison account to TOTP, follow the community walkthrough:
+[Opower: Switching your Con Edison Con Ed login to TOTP](https://community.home-assistant.io/t/opower-switching-your-con-ed-login-to-totp/893075).
+Save the Base32 seed during enrollment; the scraper needs the seed, not only a
+single six-digit code. Accurate host time is required for TOTP authentication.
+
+### Collector options
 
 - `CONED_SOURCE_MODE`: `auto` (default), `website_api`, or `opower`
 - `CONED_ACCOUNT_OVERRIDE`: optional stable account identifier
-- `CONED_DATABASE_PATH`: defaults to `data/readings.sqlite3`
+- `CONED_DATA_PATH`: persistent directory; defaults to `data`
+- `CONED_DATABASE_PATH`: optional database override; defaults beneath `CONED_DATA_PATH`
 - `CONED_POLLING_INTERVAL_MINUTES`: defaults to `7.5`, minimum `7.5`
 - `CONED_DAILY_LOOKBACK_DAYS`: rolling daily usage/weather window; defaults to `30`
-- `CONED_USERNAME`: Con Edison login email (`CONED_EMAIL` is also accepted)
-- `CONED_PASSWORD`: Con Edison password
-- `CONED_PASSWORD_ENCODING`: set to `base64` when `CONED_PASSWORD` is encoded
-- `CONED_TOTP_SECRET`: Base32 TOTP seed (`TOTP_SECRET` is also accepted)
 
-Do not place secrets in version-controlled files. For an add-on deployment,
-provide these values through its protected configuration/secret mechanism.
-Copy `.env.example` to `.env` for local development and replace its placeholders;
-`.env` is ignored by Git.
+`CONED_USERNAME`/`CONED_EMAIL`, `CONED_PASSWORD`, and
+`CONED_TOTP_SECRET`/`TOTP_SECRET` remain available only for one-time migration.
+When all three values are set, they are synchronized into encrypted storage on
+every startup and therefore override dashboard edits. Remove them from the
+environment afterward to manage credentials only through the dashboard. Set
+`CONED_PASSWORD_ENCODING=base64` only for a migrated Base64 value; Base64 is
+encoding, not encryption.
+
+`login.enc`, `login.key`, and `readings.sqlite3` all live under
+the one persistent data directory. Files are created with owner-only permissions.
+The login file is encrypted at rest, but its key necessarily lives in the same
+volume so the unattended service can restart. This prevents casual plaintext
+disclosure and Docker environment inspection; it does not protect against root
+access or theft of the complete volume. Protect and back up the data directory.
 
 ## Run
 
@@ -40,18 +64,17 @@ python -m coned_scraper
 
 ### Docker Compose
 
-Create the ignored runtime environment file and start the collector:
+Start the collector without putting login secrets in environment variables:
 
 ```console
-cp .env.example .env
-# Edit .env with the real credentials.
 docker compose up -d --build
 docker compose ps
+docker compose logs coned-scraper
 ```
 
 Open `http://localhost:8000/` for the dashboard. SQLite data is persisted in
-the `coned-data` named volume across container replacement. To inspect logs or
-stop the service:
+the single `coned-data` named volume alongside the encrypted login. Open the
+settings panel and save the login. To inspect logs or stop the service:
 
 ```console
 docker compose logs -f coned-scraper
@@ -59,6 +82,16 @@ docker compose down
 ```
 
 `docker compose down` preserves the data volume. Adding `--volumes` deletes it.
+
+For a Portainer stack on another Linux machine, copy this repository there or
+point Portainer at its Git repository, deploy `compose.yaml`, and publish port
+8000 on the Docker host. The named volume is created automatically. Retrieve the
+container logs from **Containers → coned-scraper → Logs**, then browse to
+`http://DOCKER-HOST-IP:8000/`. Keep port 8000 on the trusted LAN: the login
+settings and TOTP secret are intentionally available without web authentication,
+so this service is not an internet-facing authentication boundary. If Home
+Assistant runs in Docker, use the Docker host's LAN address unless both
+containers share a user-defined network.
 
 ### Export historical statistics to Home Assistant
 

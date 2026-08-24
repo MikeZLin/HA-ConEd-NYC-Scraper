@@ -18,11 +18,11 @@ class Runtime:
     poller: Poller
 
     @classmethod
-    def create(cls, settings: Settings) -> Runtime:
+    def create(cls, settings: Settings, *, store: ReadingStore | None = None) -> Runtime:
         settings.require_opower_credentials()
-        store = ReadingStore(settings.database_path)
+        reading_store = store or ReadingStore(settings.database_path)
         service = RefreshService(
-            store,
+            reading_store,
             website=WebsiteApiSource(
                 settings.username,
                 settings.password,
@@ -37,7 +37,7 @@ class Runtime:
         )
         return cls(
             settings=settings,
-            store=store,
+            store=reading_store,
             refresh_service=service,
             poller=Poller(service, settings.refresh, settings.polling_interval_minutes),
         )
@@ -45,8 +45,9 @@ class Runtime:
     def close(self) -> None:
         self.store.close()
 
-    async def aclose(self) -> None:
+    async def aclose(self, *, close_store: bool = True) -> None:
         website = self.refresh_service.website
         if isinstance(website, WebsiteApiSource):
             await website.close()
-        self.close()
+        if close_store:
+            self.close()

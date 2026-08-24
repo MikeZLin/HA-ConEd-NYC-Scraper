@@ -9,7 +9,9 @@ description = "Lightweight Con Edison interval usage collector"
 requires-python = ">=3.11"
 dependencies = [
   "aiohttp>=3.11",
+  "cryptography>=43",
   "opower>=0.17",
+  "pyotp>=2.9",
 ]
 
 [project.optional-dependencies]

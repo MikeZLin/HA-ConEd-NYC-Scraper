@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import base64
 import os
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from coned_scraper.config import Settings
@@ -42,3 +44,13 @@ class SettingsTests(unittest.TestCase):
             self.assertRaisesRegex(ValueError, "not valid Base64"),
         ):
             Settings.from_environment()
+
+    def test_data_path_controls_default_database_location(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            patch.dict(os.environ, {"CONED_DATA_PATH": temporary}, clear=True),
+        ):
+            settings = Settings.from_environment()
+
+        self.assertEqual(Path(temporary), settings.data_directory)
+        self.assertEqual(Path(temporary) / "readings.sqlite3", settings.database_path)

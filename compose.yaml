@@ -7,10 +7,18 @@ services:
     container_name: coned-scraper
     restart: unless-stopped
     init: true
-    env_file:
-      - .env
     environment:
-      CONED_DATABASE_PATH: /app/data/readings.sqlite3
+      CONED_DATA_PATH: /app/data
+      CONED_SOURCE_MODE: ${CONED_SOURCE_MODE:-auto}
+      CONED_POLLING_INTERVAL_MINUTES: ${CONED_POLLING_INTERVAL_MINUTES:-7.5}
+      CONED_DAILY_LOOKBACK_DAYS: ${CONED_DAILY_LOOKBACK_DAYS:-30}
+      CONED_ACCOUNT_OVERRIDE: ${CONED_ACCOUNT_OVERRIDE:-}
+      CONED_USERNAME: ${CONED_USERNAME:-}
+      CONED_EMAIL: ${CONED_EMAIL:-}
+      CONED_PASSWORD: ${CONED_PASSWORD:-}
+      CONED_PASSWORD_ENCODING: ${CONED_PASSWORD_ENCODING:-}
+      CONED_TOTP_SECRET: ${CONED_TOTP_SECRET:-}
+      TOTP_SECRET: ${TOTP_SECRET:-}
     ports:
       - "8000:8000"
     volumes:

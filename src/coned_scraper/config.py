@@ -11,6 +11,7 @@ from .service import RefreshConfig, SourceMode
 
 @dataclass(frozen=True, slots=True)
 class Settings:
+    data_directory: Path
     database_path: Path
     refresh: RefreshConfig
     username: str
@@ -40,8 +41,12 @@ class Settings:
                 password = base64.b64decode(password, validate=True).decode().rstrip("\r\n")
             except (binascii.Error, UnicodeDecodeError) as error:
                 raise ValueError("CONED_PASSWORD is not valid Base64-encoded UTF-8") from error
+        data_directory = Path(os.getenv("CONED_DATA_PATH", "data"))
         return cls(
-            database_path=Path(os.getenv("CONED_DATABASE_PATH", "data/readings.sqlite3")),
+            data_directory=data_directory,
+            database_path=Path(
+                os.getenv("CONED_DATABASE_PATH", str(data_directory / "readings.sqlite3"))
+            ),
             refresh=RefreshConfig(mode=mode, account_override=account_override),
             username=os.getenv("CONED_USERNAME") or os.getenv("CONED_EMAIL") or "",
             password=password,
@@ -53,3 +58,15 @@ class Settings:
     def require_opower_credentials(self) -> None:
         if not all((self.username, self.password, self.totp_secret)):
             raise ValueError("CONED_USERNAME, CONED_PASSWORD, and CONED_TOTP_SECRET are required")
+
+    def with_credentials(self, username: str, password: str, totp_secret: str) -> Settings:
+        return Settings(
+            data_directory=self.data_directory,
+            database_path=self.database_path,
+            refresh=self.refresh,
+            username=username,
+            password=password,
+            totp_secret=totp_secret,
+            polling_interval_minutes=self.polling_interval_minutes,
+            daily_lookback_days=self.daily_lookback_days,
+        )
