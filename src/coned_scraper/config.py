@@ -39,6 +39,4 @@ class Settings:
 
     def require_opower_credentials(self) -> None:
         if not all((self.username, self.password, self.totp_secret)):
-            raise ValueError(
-                "CONED_USERNAME, CONED_PASSWORD, and CONED_TOTP_SECRET are required"
-            )
+            raise ValueError("CONED_USERNAME, CONED_PASSWORD, and CONED_TOTP_SECRET are required")

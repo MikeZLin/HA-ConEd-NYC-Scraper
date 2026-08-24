@@ -14,7 +14,7 @@ dependencies = [
 
 [project.optional-dependencies]
 api = ["fastapi>=0.115", "uvicorn>=0.32"]
-dev = ["mypy>=1.11", "pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.8"]
+dev = ["mypy>=1.11", "pip>=25.2", "pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.8"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

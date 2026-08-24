@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any, AsyncIterator
+from typing import Any
 
 from .config import Settings
 from .runtime import Runtime
@@ -46,7 +47,9 @@ def create_app(settings: Settings | None = None) -> Any:
         except AccountOverrideError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
         except SourceError as error:
-            raise HTTPException(status_code=502, detail="Upstream interval source failed") from error
+            raise HTTPException(
+                status_code=502, detail="Upstream interval source failed"
+            ) from error
         payload = runtime.store.latest_payload()
         if payload is None:
             raise HTTPException(status_code=502, detail="Refresh produced no interval reading")

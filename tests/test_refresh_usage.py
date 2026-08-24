@@ -16,7 +16,6 @@ from coned_scraper.service import (
 )
 from coned_scraper.storage import ReadingStore
 
-
 START = datetime(2026, 8, 23, 12, 0, tzinfo=UTC)
 
 

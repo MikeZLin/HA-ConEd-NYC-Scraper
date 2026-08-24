@@ -5,7 +5,6 @@ import logging
 
 from .service import AccountOverrideError, RefreshConfig, RefreshService, SourceError
 
-
 LOGGER = logging.getLogger(__name__)
 
 

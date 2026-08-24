@@ -8,7 +8,6 @@ from typing import Protocol
 from .models import IntervalReading
 from .storage import ReadingStore
 
-
 LOGGER = logging.getLogger(__name__)
 
 
