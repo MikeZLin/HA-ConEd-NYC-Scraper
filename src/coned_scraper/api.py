@@ -115,8 +115,10 @@ def create_app(settings: Settings | None = None) -> Any:
         return {**state.store.dashboard_status(), "configured": state.runtime is not None}
 
     @app.get("/api/history/daily")
-    async def daily_history() -> list[dict[str, object]]:
-        return state.store.daily_history_payload()
+    async def daily_history(days: int = 31) -> list[dict[str, object]]:
+        if days < 0:
+            raise HTTPException(status_code=400, detail="days must be zero or greater")
+        return state.store.daily_history_payload(days=None if days == 0 else days)
 
     @app.get("/api/history/intervals")
     async def interval_history(hours: int = 24) -> list[dict[str, object]]:

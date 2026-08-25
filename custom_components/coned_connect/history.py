@@ -17,6 +17,36 @@ class HourlyUsage:
     cumulative_energy_kwh: float
 
 
+@dataclass(frozen=True, slots=True)
+class DailyUsage:
+    """A collector-provided day of energy usage."""
+
+    start: datetime
+    energy_kwh: float
+    cumulative_energy_kwh: float
+
+
+def daily_usage(rows: list[dict[str, Any]]) -> list[DailyUsage]:
+    """Convert additive daily readings to a cumulative statistic."""
+    parsed_rows: list[tuple[datetime, float]] = []
+    for row in rows:
+        try:
+            start = _parse_datetime(row["start_time"])
+            energy = float(row["energy_kwh"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if start.minute != 0 or start.second != 0 or start.microsecond != 0 or energy < 0:
+            continue
+        parsed_rows.append((start, energy))
+
+    result: list[DailyUsage] = []
+    cumulative = 0.0
+    for start, energy in sorted(parsed_rows):
+        cumulative += energy
+        result.append(DailyUsage(start, energy, cumulative))
+    return result
+
+
 def hourly_usage(rows: list[dict[str, Any]]) -> list[HourlyUsage]:
     """Aggregate additive interval readings into complete UTC hours."""
     intervals: list[tuple[datetime, datetime, float, float]] = []

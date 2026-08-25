@@ -61,3 +61,31 @@ def test_hourly_usage_omits_incomplete_or_overlapping_hours() -> None:
     ]
 
     assert history.hourly_usage(rows) == []
+
+
+def test_daily_usage_sorts_rows_and_tracks_cumulative_energy() -> None:
+    history = _load_history_module()
+    rows = [
+        {"start_time": "2026-08-24T04:00:00+00:00", "energy_kwh": 7.25},
+        {"start_time": "2026-08-23T04:00:00+00:00", "energy_kwh": 23.28},
+    ]
+
+    result = history.daily_usage(rows)
+
+    assert [item.start for item in result] == [
+        datetime(2026, 8, 23, 4, tzinfo=UTC),
+        datetime(2026, 8, 24, 4, tzinfo=UTC),
+    ]
+    assert [item.energy_kwh for item in result] == [23.28, 7.25]
+    assert [item.cumulative_energy_kwh for item in result] == [23.28, 30.53]
+
+
+def test_daily_usage_ignores_invalid_rows() -> None:
+    history = _load_history_module()
+    rows = [
+        {"start_time": "2026-08-24T04:15:00+00:00", "energy_kwh": 2},
+        {"start_time": "2026-08-24T04:00:00+00:00", "energy_kwh": -1},
+        {"start_time": "not-a-date", "energy_kwh": 3},
+    ]
+
+    assert history.daily_usage(rows) == []

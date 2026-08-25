@@ -34,6 +34,13 @@ class ConEdisonIntervalCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 if response.status != 200:
                     raise UpdateFailed(f"Collector history returned HTTP {response.status}")
                 history = await response.json()
+            async with session.get(
+                f"{self.api_url}/api/history/daily?days=0",
+                timeout=aiohttp.ClientTimeout(total=30),
+            ) as response:
+                if response.status != 200:
+                    raise UpdateFailed(f"Collector daily history returned HTTP {response.status}")
+                daily_history = await response.json()
             self._history.update(
                 {
                     (row.get("start_time"), row.get("end_time")): row
@@ -42,6 +49,7 @@ class ConEdisonIntervalCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 }
             )
             latest["_interval_history"] = list(self._history.values())
+            latest["_daily_history"] = daily_history
             return latest
         except aiohttp.ClientError as error:
             raise UpdateFailed("Unable to reach the Con Edison collector") from error

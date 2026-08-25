@@ -123,6 +123,11 @@ Copy `custom_components/coned_connect` into the Home Assistant configuration's
 Interval Usage” from Devices & Services. Enter the collector URL and port in
 their separate fields; for example, `http://192.168.1.50` and `8000`.
 
+The connector imports the daily endpoint into separate `Con Edison Daily
+Energy` and `Con Edison Daily Estimated Cost` recorder statistics. It requests
+`/api/history/daily?days=0` to backfill all stored days; omitting `days` retains
+the dashboard-friendly 31-day default.
+
 ## Tests
 
 The core suite has no third-party test dependency:
